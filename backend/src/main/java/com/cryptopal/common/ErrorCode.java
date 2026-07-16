@@ -30,6 +30,12 @@ public enum ErrorCode {
     /** Symbol is not one of the assets this application trades. */
     UNSUPPORTED_SYMBOL(HttpStatus.BAD_REQUEST),
 
+    /** No endpoint at that path. */
+    NOT_FOUND(HttpStatus.NOT_FOUND),
+
+    /** The path exists, but not for that HTTP method. */
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED),
+
     /** No cached price for the symbol yet, so a trade or valuation would be guesswork.
      *  503 rather than 500: nothing is broken, the price is simply not there yet and
      *  the next refresh is seconds away, so retrying is the right response. */
