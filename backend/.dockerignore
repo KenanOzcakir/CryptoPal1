@@ -1,0 +1,13 @@
+# Everything here is about what gets uploaded to the Docker daemon as build context.
+# Smaller context means faster builds, and nothing surprising ending up in a layer.
+
+# My local build output. The image compiles its own jar in the build stage, so copying
+# mine in would only risk baking a stale one into the image.
+target/
+
+# There is no .env in backend/ today, and there should never be one in an image either.
+# Configuration arrives from the environment at run time.
+.env
+*.env
+
+.DS_Store

@@ -1,0 +1,13 @@
+# Keeps the build context small and stops host artefacts leaking into the image.
+
+# Reinstalled inside the image by npm ci. Copying mine in would be slow and would ship
+# whatever my machine resolved, including binaries built for the wrong architecture.
+node_modules/
+
+# The image runs its own build. Copying my dist in risks serving a stale bundle.
+dist/
+
+.env
+*.env
+
+.DS_Store
