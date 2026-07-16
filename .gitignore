@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Planning documents. Kept local on purpose for now.
+# I will decide near the end which of these belong in the public repository.
+# To publish one, delete its line here (or use git add -f once).
+# ---------------------------------------------------------------------------
+/README.md
+/PROJECT_REQUIREMENTS_EXTENSIVE.md
+/PROJECT_ARCHITECTURE.md
+/SOLO_IMPLEMENTATION_PLAN.md
+/API_CONTRACT.md
+/DECISIONS.md
+/CONTRIBUTING.md
+/CLAUDE_SOLO_PROMPT.md
+/cryptopal-class-uml.mmd
+/cryptopal-class-uml.png
+
+# Secrets. Only .env.example is tracked, and it holds placeholders.
+.env
+.env.local
+.env.*.local
+
+# Java and Maven build output
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node and Vite build output
+node_modules/
+dist/
+dist-ssr/
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
