@@ -1,0 +1,126 @@
+# Production stack: all four containers, one open port.
+#
+# docker-compose.yml runs the two stateful services only and leaves the backend and the
+# frontend on my host, because during development I want hot reload on both. This file is
+# the opposite: everything runs in a container, nothing is on the host, and the only way in
+# is nginx on port 80.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Values come from .env, which is gitignored and correctly absent from the repository, so
+# it has to be written by hand on the server. Nothing here is host specific: this file does
+# not know or care which VM it runs on.
+#
+#   browser :80 -> nginx ---------------> the built SPA
+#                       \-- /api/ ------> backend:8080 -> postgres:5432
+#                                                      -> redis:6379
+
+# A project name of its own. Without this, Compose names the project after the directory,
+# both compose files declare services called postgres and redis, and starting this stack
+# would reconfigure my development containers and share their volume. With it, I can run
+# the production stack locally, alongside the dev one, and test the real thing without
+# touching my working database.
+name: cryptopal-prod
+
+services:
+  postgres:
+    # Pinned to 17 for the same reason as in development: postgres:18 moved PGDATA to
+    # /var/lib/postgresql/18/docker, where the conventional mount below would silently
+    # persist nothing at all.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env on the server}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env on the server}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env on the server}
+    # No published ports, unlike the development file. The database must not be reachable
+    # from the internet, and nothing outside this stack needs it: Compose puts every
+    # service on one private network where the backend reaches it by service name.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    # Persistence off and no volume, exactly as in development. Redis holds active sessions
+    # and the latest prices, both rebuildable. Turning persistence on here would imply a
+    # durability guarantee that belongs to PostgreSQL.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      # These three are topology rather than configuration, so they are written here
+      # instead of read from .env. Inside this network the database always answers to
+      # "postgres" and the cache to "redis", on every host this ever deploys to. Keeping
+      # them here means the same .env file works on my machine, where both are localhost.
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # The application deliberately gives these no defaults of their own, so that a typo
+      # stops startup instead of quietly running with something unintended. That is right
+      # for my machine and wrong for a server, where .env is typed by hand and a forgotten
+      # line would mean a stack that will not boot. The defaults live here instead, so a
+      # minimal .env holding only the database credentials and a Gemini key still starts.
+      SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-120}
+      MARKET_PROVIDER: ${MARKET_PROVIDER:-binance}
+      BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://api.binance.com}
+      SUPPORTED_SYMBOLS: ${SUPPORTED_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT}
+
+      # Empty rather than absent when there is no key. The app warns at startup and only
+      # /api/ai/ask degrades to AI_UNAVAILABLE, which is deliberate: a missing key must
+      # never stop the whole application from starting.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
+      GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-20}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Asks the application, not the port. /actuator/health reports DOWN when PostgreSQL
+      # or Redis is unreachable, so a backend that is listening but cannot actually work is
+      # correctly reported unhealthy rather than passing a check that proves nothing.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # Flyway runs before the app answers anything, so the first few seconds are expected
+      # to fail. Failures inside this window do not count against the retries above.
+      start_period: 60s
+    # No published ports. nginx is the only way in, which is what keeps the VM's firewall
+    # down to port 80 alone. Swagger and health are reached through nginx, not through 8080.
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      # The only port this stack opens. Everything else talks over the private network.
+      - "80:80"
+    depends_on:
+      backend:
+        # Waiting for healthy rather than started means a deploy either comes up working or
+        # visibly does not, instead of serving a page whose every request fails.
+        condition: service_healthy
+
+volumes:
+  postgres_data:
