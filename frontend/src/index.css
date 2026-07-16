@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/*
+  Tailwind 4 is configured here, in CSS, rather than in a tailwind.config.js. Anything
+  declared in @theme becomes a utility automatically, so bg-surface and text-up work with
+  no config file at all.
+
+  The palette is lifted from the CoinMarketCap screenshot this UI is modelled on: a very
+  dark blue-black canvas, a lighter panel, one blue accent, and green/red for direction.
+  Naming them by role (surface, up, down) rather than by colour means changing the theme
+  later is one edit here instead of a hunt through every component.
+*/
+@theme {
+  /* Backgrounds, darkest first. */
+  --color-canvas: #0d1421;
+  --color-surface: #171d2b;
+  --color-raised: #1f2637;
+  --color-hairline: #2a3142;
+
+  /* Text. */
+  --color-ink: #eff2f5;
+  --color-muted: #8a93a5;
+
+  /* Direction. Green is up, red is down, and nothing else in this app is allowed to use
+     them, so a green number always means exactly one thing. */
+  --color-up: #16c784;
+  --color-down: #ea3943;
+
+  --color-accent: #3861fb;
+  --color-accent-hover: #2b4fd4;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  Every number in this app is money, and money should not dance. Tabular figures fix each
+  digit to the same width, so a price ticking from 64,111 to 64,999 does not shift the
+  column sideways. Requirement 6.6 asks for no layout shift during polling; this is most
+  of how that is achieved.
+*/
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The AI answers arrive as Markdown. react-markdown emits plain tags, and Tailwind's
+   reset strips their styling, so the few tags Gemini actually uses are styled back here
+   rather than sprinkling classes through the renderer. */
+.md > * + * {
+  margin-top: 0.75rem;
+}
+.md h1, .md h2, .md h3 {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.md h3 {
+  font-size: 0.95rem;
+}
+.md ul {
+  list-style: disc;
+  padding-left: 1.1rem;
+}
+.md li + li {
+  margin-top: 0.25rem;
+}
+.md strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.md code {
+  background: var(--color-raised);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
