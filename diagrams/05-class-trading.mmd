@@ -1,0 +1,108 @@
+---
+title: trading module
+---
+classDiagram
+direction TB
+
+class TradingController {
+  <<RestController>>
+  +executeOrder(OrderRequest, AuthenticatedUser) OrderResponse
+  +getPortfolio(AuthenticatedUser) Portfolio
+  +getTransactions(AuthenticatedUser) List~TransactionView~
+}
+class TradingService {
+  <<Service>>
+  +executeOrder(userId, request) OrderResponse
+  -buy(userId, wallet, quote, spend) OrderResponse
+  -sell(userId, wallet, quote, quantity) OrderResponse
+  -addToPosition(walletId, symbol, qty) Holding
+}
+class PortfolioService {
+  <<Service>>
+  +getPortfolio(userId) Portfolio
+  +getTransactions(userId) List~TransactionView~
+  -value(holding) HoldingView
+}
+class MoneyMath {
+  <<utility>>
+  +FIAT_SCALE$ int = 2
+  +CRYPTO_SCALE$ int = 8
+  +buyQuantity(fiat, price)$ BigDecimal
+  +fiatValue(quantity, price)$ BigDecimal
+  +normalizeQuantity(qty)$ BigDecimal
+  +normalizeFiat(fiat)$ BigDecimal
+}
+class OrderSide {
+  <<enumeration>>
+  BUY
+  SELL
+  +fromString(value)$ OrderSide
+}
+class OrderRequest {
+  <<record>>
+  +symbol: String
+  +side: OrderSide
+  +amount: BigDecimal
+}
+class OrderResponse {
+  <<record>>
+  +quantity: BigDecimal
+  +executionPrice: BigDecimal
+  +fiatAmount: BigDecimal
+  +fiatBalance: BigDecimal
+  +holdingQuantity: BigDecimal
+}
+class Portfolio {
+  <<record>>
+  +fiatBalance: BigDecimal
+  +holdings: List~HoldingView~
+  +holdingsValue: BigDecimal
+  +totalValue: BigDecimal
+}
+class HoldingView {
+  <<record>>
+  +symbol: String
+  +quantity: BigDecimal
+  +estimatedValue: BigDecimal
+}
+class Holding {
+  <<Entity>>
+  -walletId: UUID
+  -symbol: String
+  -quantity: BigDecimal
+}
+class Transaction {
+  <<Entity>>
+  -userId: UUID
+  -side: OrderSide
+  -quantity: BigDecimal
+  -executionPrice: BigDecimal
+  -fiatAmount: BigDecimal
+}
+class HoldingRepository {
+  <<Repository>>
+  +findByWalletIdAndSymbol(walletId, symbol)
+  +findByWalletId(walletId)
+}
+class TransactionRepository {
+  <<Repository>>
+  +findByUserIdOrderByCreatedAtDesc(userId, limit)
+}
+
+TradingController --> TradingService
+TradingController --> PortfolioService
+TradingService ..> MoneyMath : all arithmetic
+TradingService --> HoldingRepository
+TradingService --> TransactionRepository
+TradingService ..> OrderRequest
+TradingService ..> OrderResponse
+PortfolioService --> HoldingRepository
+PortfolioService --> TransactionRepository
+PortfolioService ..> Portfolio : builds
+Portfolio *-- HoldingView
+Transaction ..> OrderSide : typed by
+OrderRequest ..> OrderSide
+
+note for TradingService "One order is one @Transactional unit holding SELECT ... FOR UPDATE on the wallet row. @Transactional alone does not stop lost updates under READ COMMITTED: two orders can both read 1000, both approve 100, and both write 900. Reads price from MarketDataService and the wallet from auth's WalletRepository."
+note for MoneyMath "BUY quantity = fiat / price rounded DOWN at 8dp, so rounding can never hand out more coin than was paid for. Money never touches a double."
+note for OrderRequest "amount means fiat to spend on a BUY and crypto quantity on a SELL. They are not interchangeable."

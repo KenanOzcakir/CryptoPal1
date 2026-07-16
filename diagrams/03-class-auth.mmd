@@ -1,0 +1,83 @@
+---
+title: auth module
+---
+classDiagram
+direction TB
+
+class AuthController {
+  <<RestController>>
+  +register(RegisterRequest) AuthResponse
+  +login(LoginRequest) AuthResponse
+  +logout(token) void
+}
+class AuthService {
+  <<Service>>
+  -passwordEncoder: PasswordEncoder
+  -transactionTemplate: TransactionTemplate
+  -decoyHash: String
+  +register(request) AuthResponse
+  +login(request) AuthResponse
+  +validateToken(token) AuthenticatedUser
+  -createUserWithWallet(email, hash) User
+  -randomStartingBalance() BigDecimal
+  -normalizeEmail(email)$ String
+}
+class SessionService {
+  <<Service>>
+  -redis: StringRedisTemplate
+  -random: SecureRandom
+  -ttl: Duration
+  +createSession(user) String
+  +getSession(token) Optional~AuthenticatedUser~
+  +invalidate(token) void
+}
+class SessionAuthFilter {
+  <<Filter>>
+  +AUTH_USER_ATTRIBUTE$ String
+  #shouldNotFilter(request) boolean
+  #doFilterInternal(req, res, chain) void
+}
+class PasswordConfig {
+  <<Configuration>>
+  +passwordEncoder() PasswordEncoder
+}
+class User {
+  <<Entity>>
+  -id: UUID
+  -email: String
+  -passwordHash: String
+}
+class Wallet {
+  <<Entity>>
+  -id: UUID
+  -userId: UUID
+  -fiatBalance: BigDecimal
+}
+class AuthenticatedUser {
+  <<record>>
+  +userId: UUID
+  +email: String
+}
+class UserRepository {
+  <<Repository>>
+  +findByEmail(email) Optional~User~
+  +existsByEmail(email) boolean
+}
+class WalletRepository {
+  <<Repository>>
+  +findByUserId(id) Optional~Wallet~
+  +findByUserIdForUpdate(id) Optional~Wallet~
+}
+
+AuthController --> AuthService
+SessionAuthFilter --> AuthService : validates token
+AuthService --> SessionService
+AuthService --> UserRepository
+AuthService --> WalletRepository
+AuthService ..> PasswordConfig : uses PasswordEncoder
+SessionService ..> AuthenticatedUser : stores as JSON in Redis
+User "1" *-- "1" Wallet : owns
+
+note for SessionService "Opaque random tokens (32 bytes) in Redis under session:token with a TTL. Not JWT, so logout is a DELETE and genuinely revokes."
+note for AuthService "Register creates user and wallet in one transaction, then creates the session AFTER commit: Redis is not part of a Postgres transaction, so a session written inside one would survive a rollback."
+note for SessionAuthFilter "Denies everything under /api/ except register, login and /api/market. Lives here, not in common, because auth issues sessions so auth judges them."

@@ -1,0 +1,35 @@
+---
+title: Buy Order Flow
+---
+sequenceDiagram
+  autonumber
+  participant U as Browser
+  participant F as SessionAuthFilter
+  participant T as TradingService
+  participant M as MarketDataService
+  participant R as Redis
+  participant P as PostgreSQL
+
+  U->>F: POST /api/orders (Bearer token)
+  F->>R: GET session:token
+  R-->>F: userId, email
+  Note over F: Rejects with UNAUTHORIZED<br/>before any controller runs
+  F->>T: executeOrder(userId, request)
+
+  rect rgb(243, 247, 255)
+    Note over T,P: One @Transactional unit
+    T->>M: getLatestPrice(symbol)
+    M->>R: GET price:BTC
+    R-->>M: quote
+    Note over T,M: Price read BEFORE the lock,<br/>so nobody waits through a Redis hop
+    T->>P: SELECT wallet FOR UPDATE
+    Note over P: Any other order for this wallet<br/>now waits here until commit
+    P-->>T: wallet (locked)
+    T->>T: check funds, MoneyMath.buyQuantity()<br/>rounds DOWN at 8dp
+    T->>P: UPDATE wallet balance
+    T->>P: UPSERT holding
+    T->>P: INSERT transaction
+    Note over T,P: All three land, or none do
+  end
+
+  T-->>U: OrderResponse (new balance + position)

@@ -1,0 +1,15 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#0f172a",
+    "primaryBorderColor": "#cbd5e1",
+    "lineColor": "#2563eb",
+    "secondaryColor": "#f1f5f9",
+    "tertiaryColor": "#f8fafc",
+    "fontFamily": "-apple-system, BlinkMacSystemFont, Segoe UI, Inter, sans-serif",
+    "fontSize": "15px",
+    "classText": "#0f172a"
+  },
+  "flowchart": { "curve": "basis", "padding": 18 }
+}

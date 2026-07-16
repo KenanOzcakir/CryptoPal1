@@ -1,0 +1,71 @@
+---
+title: ai module
+---
+classDiagram
+direction TB
+
+class AiInsightController {
+  <<RestController>>
+  +ask(AiInsightRequest, AuthenticatedUser) AiInsightResponse
+}
+class AiInsightService {
+  <<Service>>
+  +ask(userId, question) AiInsightResponse
+  -gatherContext(userId) InsightContext
+  -trendsFor(latestPrices) List~PriceTrend~
+  -percentChange(from, to)$ BigDecimal
+}
+class PromptBuilder {
+  <<Component>>
+  +buildUserInsightPrompt(context, question) String
+  -instructions() String
+  -accountSection(portfolio) String
+  -marketSection(context) String
+}
+class GeminiClient {
+  <<Component>>
+  -apiKey: String
+  -model: String
+  -timeout: Duration
+  +generate(prompt) String
+  -isConfigured() boolean
+  -textOf(response) String
+}
+class AiConfig {
+  <<Configuration>>
+  +geminiWebClient(baseUrl) WebClient
+}
+class InsightContext {
+  <<record>>
+  +portfolio: Portfolio
+  +latestPrices: List~PriceQuote~
+  +trends: List~PriceTrend~
+}
+class PriceTrend {
+  <<record>>
+  +symbol: String
+  +changePercent: BigDecimal
+  +samples: int
+}
+class AiInsightRequest {
+  <<record>>
+  +question: String
+}
+class AiInsightResponse {
+  <<record>>
+  +answer: String
+}
+
+AiInsightController --> AiInsightService
+AiInsightService --> PromptBuilder
+AiInsightService --> GeminiClient
+AiInsightService ..> InsightContext : builds
+InsightContext *-- PriceTrend
+PromptBuilder ..> InsightContext : renders
+GeminiClient ..> AiConfig : uses WebClient
+AiInsightService ..> AiInsightResponse
+
+note for AiInsightService "Gathers the portfolio from trading's PortfolioService, so the assistant sees exactly the numbers the portfolio page shows and the two cannot disagree. Percentage changes are computed HERE in Java, never by the model: an LLM doing arithmetic produces answers that read fluently and do not add up."
+note for PromptBuilder "Instructions first, account data under headings, user question last and fenced. A question is data, not instruction."
+note for GeminiClient "Backend only. Key from GEMINI_API_KEY, sent as a header not a query param, never logged or returned. Timeout, rate limit, bad key, blocked or empty reply all become one clean AI_UNAVAILABLE."
+note for InsightContext "The privacy boundary: anything not gathered here is something the model cannot know. No password hash, no session token, no other user's data."

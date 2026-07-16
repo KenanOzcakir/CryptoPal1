@@ -1,0 +1,84 @@
+---
+title: market module
+---
+classDiagram
+direction TB
+
+class MarketController {
+  <<RestController>>
+  +getLatestPrices() List~PriceQuote~
+  +getPrice(symbol) PriceQuote
+}
+class MarketDataService {
+  <<Service>>
+  -provider: MarketDataProvider
+  -fallback: MarketDataProvider
+  -redis: StringRedisTemplate
+  +refreshPrices() void
+  +getLatestPrices() List~PriceQuote~
+  +getLatestPrice(symbol) PriceQuote
+  -fetchWithFallback() List~PriceQuote~
+}
+class MarketConfig {
+  <<Configuration>>
+  +binanceWebClient(baseUrl) WebClient
+  +tickerEngineProvider() TickerEngineProvider
+  +primaryMarketDataProvider(mode) MarketDataProvider
+}
+class MarketDataProvider {
+  <<interface>>
+  +fetchLatestPrices() List~PriceQuote~
+}
+class BinanceMarketDataProvider {
+  -webClient: WebClient
+  -pairs: List~String~
+  -timeout: Duration
+  +fetchLatestPrices() List~PriceQuote~
+  ~toAsset(pair)$ String
+}
+class TickerEngineProvider {
+  -basePrices: Map
+  -random: Random
+  +fetchLatestPrices() List~PriceQuote~
+}
+class Binance24hrTicker {
+  <<record>>
+  +symbol: String
+  +lastPrice: String
+  +priceChangePercent: String
+  +quoteVolume: String
+}
+class PriceQuote {
+  <<record>>
+  +symbol: String
+  +price: BigDecimal
+  +quotedAt: Instant
+  +changePercent24h: BigDecimal
+  +volume24h: BigDecimal
+}
+class PriceSnapshot {
+  <<Entity>>
+  -symbol: String
+  -price: BigDecimal
+  -capturedAt: Instant
+}
+class PriceSnapshotRepository {
+  <<Repository>>
+  +findBySymbolOrderByCapturedAtDesc(symbol, limit)
+}
+class MarketDataUnavailableException
+
+MarketController --> MarketDataService
+MarketConfig ..> MarketDataProvider : chooses via MARKET_PROVIDER
+BinanceMarketDataProvider ..|> MarketDataProvider
+TickerEngineProvider ..|> MarketDataProvider
+MarketDataService --> MarketDataProvider : primary + ticker fallback
+MarketDataService --> PriceSnapshotRepository
+BinanceMarketDataProvider ..> Binance24hrTicker : parses
+BinanceMarketDataProvider ..> MarketDataUnavailableException : throws
+MarketDataProvider ..> PriceQuote : produces
+PriceQuote ..> PriceSnapshot : converts to
+
+note for MarketDataService "@Scheduled(fixedRate=15000). Writes latest to Redis with a 60s TTL and appends a snapshot to Postgres. The TTL matters: a stopped scheduler expires prices into PRICE_UNAVAILABLE rather than letting trades run against an hours-old number."
+note for TickerEngineProvider "Offline fallback. MarketDataService switches to it automatically when Binance fails, so a dead network never leaves a demo with no prices. Its numbers are invented."
+note for PriceQuote "changePercent24h and volume24h are display only and nullable. Trading and valuation read price alone."
