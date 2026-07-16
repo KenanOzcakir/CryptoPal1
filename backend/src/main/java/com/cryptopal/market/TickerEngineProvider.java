@@ -86,9 +86,23 @@ public class TickerEngineProvider implements MarketDataProvider {
             String symbol = entry.getKey();
             BigDecimal next = nextPrice(symbol, entry.getValue());
             currentPrices.put(symbol, next); // remember it so next tick drifts from here
-            quotes.add(new PriceQuote(symbol, next, now));
+            // Drift away from the starting price, offered in the 24 hour change slot so the
+            // market table still has something to colour green or red when Binance is down.
+            // It is not a real 24 hour change and I have no way to fake one honestly: this
+            // engine has no history, only a baseline. Volume stays null because a made up
+            // trading volume would be a number with no meaning at all.
+            quotes.add(new PriceQuote(symbol, next, now, driftFromBase(symbol, next), null));
         }
         return quotes;
+    }
+
+    // How far a price has wandered from where it started, as a percentage. Two decimals to
+    // match how it gets displayed.
+    private BigDecimal driftFromBase(String symbol, BigDecimal current) {
+        BigDecimal base = basePrices.get(symbol);
+        return current.subtract(base)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(base, 2, RoundingMode.HALF_UP);
     }
 
     // Take one price for a small random walk, then pull it back into its band if it wandered off.
