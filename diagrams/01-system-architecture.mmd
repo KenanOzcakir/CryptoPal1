@@ -1,0 +1,28 @@
+---
+title: CryptoPal System Architecture
+---
+flowchart LR
+  browser["<b>React SPA</b><br/><br/>Login / Register<br/>Market table<br/>Trade modal<br/>Portfolio<br/>AI ask bar"]
+
+  subgraph core["Spring Boot Core (one deployable)"]
+    direction TB
+    auth["<b>auth</b><br/>register, login, sessions"]
+    market["<b>market</b><br/>prices, 15s refresh"]
+    trading["<b>trading</b><br/>buy, sell, portfolio"]
+    ai["<b>ai</b><br/>account insights"]
+    common["<b>common</b><br/>errors, Swagger"]
+  end
+
+  redis[("<b>Redis</b><br/><br/>sessions (TTL 2h)<br/>latest prices (TTL 60s)")]
+  postgres[("<b>PostgreSQL</b><br/><br/>users, wallets<br/>holdings, transactions<br/>price snapshots")]
+  binance["<b>Binance Spot API</b><br/><br/>real prices, 24h change<br/>read only, no orders"]
+  gemini["<b>Google Gemini</b><br/><br/>backend only<br/>key never sent to browser"]
+
+  browser -- "HTTP JSON, same origin" --> core
+  core -- "volatile only" --> redis
+  core -- "source of truth" --> postgres
+  market -- "every 15s, batched" --> binance
+  ai -- "prompt built from account data" --> gemini
+
+  classDef box fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,rx:8,ry:8
+  class browser,binance,gemini,auth,market,trading,ai,common box

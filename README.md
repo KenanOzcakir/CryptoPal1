@@ -1,0 +1,353 @@
+# CryptoPal
+
+A cryptocurrency trading simulator with an AI account assistant. Real prices from Binance,
+simulated trades against a virtual balance, and a Gemini-backed assistant that answers
+questions about your own account.
+
+Built solo as an i2i term project.
+
+![Java](https://img.shields.io/badge/Java-17-red)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-brightgreen)
+![React](https://img.shields.io/badge/React-19-61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
+![Redis](https://img.shields.io/badge/Redis-8-dc382d)
+
+## Objective
+
+Build a modular backend that has to get several things right at once: real external market
+data, a fast cache, a durable source of truth, money arithmetic that cannot drift,
+concurrency that cannot lose a balance, and an AI integration that never invents a number.
+The trading is simulated so the interesting problems stay in the engineering rather than in
+the finance.
+
+**No order placed here ever reaches an exchange.** Binance is read as a price feed and
+nothing else. All balances are play money.
+
+## What it does
+
+1. You register and receive a randomized starting balance between $10,000 and $100,000 in
+   virtual USD.
+2. You watch real BTC, ETH, SOL and XRP prices, refreshed every 15 seconds.
+3. You buy and sell against those prices. Trades are simulated but the arithmetic is real.
+4. You track a portfolio valued at the latest prices, and a full trade history.
+5. You ask an assistant about your account, and it answers from your actual data.
+
+## Features
+
+| Feature | Detail |
+|---|---|
+| Accounts | Register, log in, log out. Passwords hashed with BCrypt |
+| Sessions | Opaque random tokens in Redis with a TTL. Logout revokes immediately |
+| Live prices | Binance Spot API, all four assets in one batched call, refreshed every 15s |
+| Offline fallback | If Binance fails, a local ticker engine takes over automatically so prices never stop |
+| Trading | Buy and sell in one transaction under a wallet row lock, so concurrent orders cannot corrupt a balance |
+| Portfolio | Cash, positions valued at live prices, total, and recent trades |
+| AI assistant | Gemini, called only from the backend, grounded in your account data and told not to invent figures |
+| API docs | Swagger UI generated from the code |
+
+## Technologies
+
+| Area | Choice |
+|---|---|
+| Backend | Java 17, Spring Boot 4.1.0, Maven |
+| Frontend | React 19, TypeScript, Vite 8, Tailwind CSS 4 |
+| Database | PostgreSQL 17, Flyway migrations |
+| Cache | Redis 8 |
+| Market data | Binance Spot API (`/api/v3/ticker/24hr`) |
+| AI | Google Gemini (`gemini-3.1-flash-lite`) |
+| API docs | springdoc-openapi 3.0.3 |
+| Infrastructure | Docker Compose |
+
+Why each of these, and what was rejected, is in [DESIGN_CHOICES.md](DESIGN_CHOICES.md).
+
+### Backend dependencies
+
+All version-managed by the Spring Boot parent except springdoc.
+
+```text
+spring-boot-starter-webmvc          REST controllers, JSON, embedded Tomcat
+spring-boot-starter-data-jpa        Hibernate, entities, repositories
+spring-boot-starter-data-redis      RedisTemplate for sessions and prices
+spring-boot-starter-validation      Bean Validation on request DTOs
+spring-boot-starter-actuator        /actuator/health
+spring-boot-starter-webclient       WebClient for Binance and Gemini
+spring-boot-starter-flyway          Migrations, and the auto-configuration that runs them
+spring-security-crypto              BCrypt only, not the full security starter
+flyway-database-postgresql          Flyway's PostgreSQL dialect
+postgresql                          JDBC driver
+springdoc-openapi-starter-webmvc-ui Swagger UI (3.x is the Spring Boot 4 line)
+```
+
+### Frontend dependencies
+
+```text
+react, react-dom                    UI
+react-router-dom                    Routing
+@tanstack/react-query               Polling and async state
+react-markdown                      Renders the assistant's Markdown answers safely
+tailwindcss, @tailwindcss/vite      Styling
+typescript, vite                    Build and typecheck
+```
+
+## Requirements
+
+- JDK 17 or newer
+- Maven 3.9+
+- Node 20+ and npm
+- Docker and Docker Compose
+- A Google Gemini API key, free from https://aistudio.google.com/apikey (optional: the app
+  runs without one, only the assistant is disabled)
+
+## Setup
+
+```bash
+git clone https://github.com/KenanOzcakir/CryptoPal1.git
+cd CryptoPal1
+
+# 1. Configuration. .env is gitignored and never committed.
+cp .env.example .env
+
+# 2. Put your Gemini key in .env if you want the assistant:
+#    GEMINI_API_KEY=your_key_here
+
+# 3. Start PostgreSQL and Redis
+docker compose up -d
+docker compose ps          # both should say (healthy)
+```
+
+Flyway creates the schema automatically the first time the backend starts. There is no
+manual database setup.
+
+## Running it
+
+Three terminals, or background the first two.
+
+```bash
+# Terminal 1: backend on :8080
+cd backend
+mvn spring-boot:run
+
+# Terminal 2: frontend on :5173
+cd frontend
+npm install
+npm run dev
+```
+
+Then open **http://localhost:5173**, register an account, and trade.
+
+| URL | What |
+|---|---|
+| http://localhost:5173 | The app |
+| http://localhost:8080/swagger-ui.html | API documentation |
+| http://localhost:8080/actuator/health | Health check |
+| http://localhost:8080/v3/api-docs | Raw OpenAPI document |
+
+## Building
+
+```bash
+# Backend: runs the tests, then produces a runnable jar
+cd backend
+mvn clean package
+java -jar target/cryptopal-backend-0.1.0-SNAPSHOT.jar
+
+# Frontend: typechecks, then builds into frontend/dist
+cd frontend
+npm run build
+```
+
+## Testing
+
+```bash
+docker compose up -d      # required: the tests use real PostgreSQL and Redis
+cd backend
+mvn test
+```
+
+**92 tests, 0 failures.** They never call Binance or Gemini: the outbound clients are
+stubbed, so the suite needs no network and spends no tokens.
+
+The tests worth knowing about:
+
+| Test | What it proves |
+|---|---|
+| `concurrentBuysCannotOverdrawTheWallet` | Fires 20 orders of $100 at a $1,000 wallet at once. Exactly 10 succeed and the balance lands on $0.00. Remove the lock and it fails immediately |
+| `whenTheTradeLogCannotBeWrittenTheMoneyDoesNotMove` | Breaks the trade log mid-order and checks the balance is untouched |
+| `buyingRoundsTheQuantityDownSoValueIsNeverInvented` | What you receive is worth no more than what you paid |
+| `loggingOutKillsTheTokenImmediately` | The token is gone from Redis and refused on the next call |
+| `aWrongPasswordAndAnUnknownEmailAreIndistinguishable` | Login cannot be used to discover which emails have accounts |
+| `theSessionActuallyLivesInRedisAndCarriesATtl` | Redis is genuinely doing the work |
+
+## Usage
+
+Register, and you land on the market page.
+
+| Action | How |
+|---|---|
+| See prices | The market page polls every 15 seconds. "Refresh" forces it |
+| Buy | Trade on any row, Buy tab, enter **dollars to spend** |
+| Sell | Trade on a row you hold, Sell tab, enter **quantity of coin** |
+| Portfolio | Cash, positions, total, and every trade |
+| Ask the AI | The bar at the bottom. Focus it for suggested questions |
+| Log out | Top right. The token dies server-side, not just in the browser |
+
+## Rules and behaviour worth knowing
+
+**The `amount` field means different things depending on `side`.** This is the single most
+important rule in the API:
+
+- **BUY**: `amount` is the **fiat to spend**. `100` means "spend 100 dollars".
+- **SELL**: `amount` is the **quantity of crypto**. `0.5` means "sell half a coin".
+
+They are not interchangeable. Sending `1000` to a SELL asks to sell a thousand whole coins.
+The UI makes this hard to get wrong: the label, the unit inside the field and a live preview
+all change with the tab, and switching tabs clears the number.
+
+Other behaviour that is deliberate rather than accidental:
+
+- **Buy quantity always rounds down** at 8 decimals. Rounding can never hand out more coin
+  than was paid for.
+- **Every money value is a `BigDecimal`.** Nothing touches a float.
+- **Prices expire after 60 seconds.** If refreshes stop, the API answers `PRICE_UNAVAILABLE`
+  rather than letting trades run against a stale number.
+- **An unknown path under `/api/` returns 401, not 404**, because the session filter decides
+  before the router does. The API surface cannot be mapped by probing.
+- **Redis holds nothing durable.** Losing it logs everyone out and drops the price cache.
+  Nothing else.
+- **Market prices are public.** Everything else needs a session.
+- **The Gemini key never leaves the server.** The browser has no way to reach Gemini.
+- **The app runs without a Gemini key.** Only `/api/ai/ask` degrades.
+
+## Expected result
+
+A working simulator. A real round trip from the running app looks like this:
+
+```text
+BUY   0.01563232 BTC @ 63,970.00  = $1,000.00
+SELL  0.01563232 BTC @ 63,972.13  = $1,000.03
+```
+
+Balance moved 84,401.00 to 84,401.03. BTC rose $2.13 between the two orders and the
+simulator paid out exactly that, three cents. Then the assistant, asked about it:
+
+> Your total account value is **84,401.03 virtual USD**. Currently, you hold no crypto...
+> This trade resulted in a gain of **0.03 virtual USD**.
+> Please note that this is a simulated account using play money for educational purposes.
+
+## API
+
+Full contract in [API_CONTRACT.md](API_CONTRACT.md), live docs at `/swagger-ui.html`.
+
+```text
+POST   /api/auth/register     public
+POST   /api/auth/login        public
+POST   /api/auth/logout       session
+GET    /api/market/prices     public
+GET    /api/market/prices/{symbol}  public
+POST   /api/orders            session
+GET    /api/portfolio         session
+GET    /api/transactions      session
+POST   /api/ai/ask            session
+```
+
+Every failure returns the same shape, so the frontend handles errors once:
+
+```json
+{ "message": "Insufficient funds to complete this trade",
+  "code": "INSUFFICIENT_FUNDS",
+  "timestamp": "2026-07-16T12:00:00Z" }
+```
+
+Branch on `code`, never on `message`.
+
+## Structure
+
+```text
+CryptoPal1/
+├── backend/
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/cryptopal/
+│       │   ├── CryptoPalApplication.java   entry point, enables scheduling
+│       │   ├── common/    error contract, Swagger. Depends on nothing else
+│       │   ├── auth/      register, login, sessions, User, Wallet, the auth filter
+│       │   ├── market/    price providers, the 15s refresh, Redis cache, snapshots
+│       │   ├── trading/   buy, sell, portfolio, MoneyMath, Holding, Transaction
+│       │   └── ai/        Gemini client, prompt builder, insight endpoint
+│       ├── main/resources/
+│       │   ├── application.yml
+│       │   └── db/migration/V1__initial_schema.sql
+│       └── test/java/com/cryptopal/        92 tests
+├── frontend/
+│   └── src/
+│       ├── api/           client and types, mirrors the backend DTOs
+│       ├── components/    shared UI
+│       ├── features/      auth, market, trading, portfolio, ai-chat
+│       ├── lib/           number formatting
+│       ├── state/         auth context
+│       ├── App.tsx        routes and shell
+│       └── main.tsx       providers
+├── diagrams/              architecture, order flow, and a class diagram per module
+├── docker-compose.yml     PostgreSQL and Redis
+├── .env.example           configuration template
+├── API_CONTRACT.md
+├── DESIGN_CHOICES.md
+└── README.md
+```
+
+The backend is one deployable, split into feature packages rather than into layers. Each
+package holds its own controller, services, entities and repositories. `common` is the only
+package the others may depend on, and it depends on none of them.
+
+## Diagrams
+
+| File | What it shows |
+|---|---|
+| `diagrams/01-system-architecture.png` | How the pieces fit together |
+| `diagrams/02-order-flow.png` | A buy order end to end, including the wallet lock |
+| `diagrams/03-class-auth.png` | The auth module |
+| `diagrams/04-class-market.png` | The market module and the provider seam |
+| `diagrams/05-class-trading.png` | The trading module |
+| `diagrams/06-class-ai.png` | The AI module |
+
+Sources are the `.mmd` files beside them.
+
+## Configuration
+
+Everything is read from the environment. Nothing is hardcoded and no secret is committed.
+
+| Variable | Purpose |
+|---|---|
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Database |
+| `DATABASE_URL` | JDBC URL |
+| `REDIS_HOST`, `REDIS_PORT` | Cache |
+| `SESSION_TTL_MINUTES` | How long a session lives. Default 120 |
+| `MARKET_PROVIDER` | `binance` (default) or `ticker` to run offline |
+| `BINANCE_BASE_URL`, `SUPPORTED_SYMBOLS` | Market data |
+| `GEMINI_API_KEY` | The assistant. Backend only |
+| `GEMINI_MODEL` | Default `gemini-3.1-flash-lite` |
+| `VITE_API_BASE_URL` | Where the dev server proxies `/api` |
+
+## Checklist
+
+- [x] Register, log in, log out
+- [x] Randomized starting balance
+- [x] Live prices from a real exchange, refreshed every 15 seconds
+- [x] Redis for sessions and the latest prices only
+- [x] PostgreSQL as the source of truth, with Flyway migrations
+- [x] Buy and sell, transactional, with a wallet lock
+- [x] Insufficient funds and insufficient holdings rejected
+- [x] Portfolio and trade history
+- [x] AI answers about the account, backend only
+- [x] Errors handled cleanly and consistently
+- [x] Docker Compose for the infrastructure
+- [x] Swagger documentation
+- [x] Frontend with loading and error states
+- [x] No secrets committed
+- [x] 92 tests passing
+- [ ] Deployment to a VM (Oracle Cloud Always-Free, arm64)
+- [ ] Screenshots
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Free to use for learning and reference.

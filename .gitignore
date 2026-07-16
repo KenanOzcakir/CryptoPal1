@@ -1,19 +1,20 @@
 # ---------------------------------------------------------------------------
-# Planning documents. Kept local on purpose for now.
-# I will decide near the end which of these belong in the public repository.
-# To publish one, delete its line here (or use git add -f once).
+# Working notes that stay on my machine.
+#
+# README.md, DESIGN_CHOICES.md, API_CONTRACT.md and the UML are published; the
+# files below are the ones I write for myself while building. They are ignored
+# rather than deleted because they are still useful to me.
 # ---------------------------------------------------------------------------
-/README.md
 /PROJECT_REQUIREMENTS_EXTENSIVE.md
 /PROJECT_ARCHITECTURE.md
 /SOLO_IMPLEMENTATION_PLAN.md
-/API_CONTRACT.md
-/DECISIONS.md
 /CONTRIBUTING.md
-/CLAUDE_SOLO_PROMPT.md
+/SOLO_PROMPT.md
 /CONTEXT_HANDOVER.md
-/cryptopal-class-uml.mmd
-/cryptopal-class-uml.png
+
+# My personal study material. Written to teach myself this project later, so it
+# is full of half-remembered notes and explanations aimed at nobody but me.
+/private-docs/
 
 # Secrets. Only .env.example is tracked, and it holds placeholders.
 .env
