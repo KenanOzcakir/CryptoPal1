@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!--
+	  Inheriting from Spring Boot's parent gives me tested versions for every library
+	  below, so my own dependencies almost never need a <version> of their own. It also
+	  configures the compiler and the repackage plugin that builds the runnable jar.
+	-->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.0</version>
+		<relativePath/>
+	</parent>
+
+	<groupId>com.cryptopal</groupId>
+	<artifactId>cryptopal-backend</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<name>CryptoPal Backend</name>
+	<description>CryptoPal Core: market data, trading, portfolio, and AI insight backend.</description>
+
+	<properties>
+		<!--
+		  I compile for Java 17 even though my machine runs a newer JDK. Bytecode runs on
+		  any JVM of the same or newer version, so targeting the oldest LTS that Spring
+		  Boot 4 supports keeps the jar runnable on whatever the deployment VM installs.
+		-->
+		<java.version>17</java.version>
+		<!--
+		  springdoc is not managed by the Spring Boot BOM, so this one needs a version.
+		  The 3.x line is the one built for Spring Boot 4; the older 2.x line targets
+		  Boot 3 and will not start here.
+		-->
+		<springdoc.version>3.0.3</springdoc.version>
+	</properties>
+
+	<dependencies>
+		<!-- REST controllers, JSON, and the embedded Tomcat that serves them.
+		     Spring Boot 4 renamed the old spring-boot-starter-web to this. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- JPA and Hibernate, for the PostgreSQL entities and repositories. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Redis access. I use the RedisTemplate it provides directly for sessions
+		     and the latest price cache, rather than Spring Data Redis repositories. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+		<!-- Bean Validation, so request DTOs can reject bad input before it reaches a service. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- /actuator/health. It gives me a cheap way to prove the app is really up,
+		     and the production compose file will point its healthcheck at it. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!--
+		  BCrypt only. I deliberately do NOT pull spring-boot-starter-security: it would
+		  install a full filter chain that locks down every route by default, and I would
+		  then spend config undoing it to make room for my own SessionAuthFilter. This
+		  artifact is just the crypto classes, no auto-configuration to fight. Its version
+		  comes from the Spring Security BOM that Spring Boot already imports.
+		-->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
+		<!--
+		  Flyway owns the schema, and migrations run automatically at startup.
+
+		  This must be the starter, not a bare org.flywaydb:flyway-core. Spring Boot 4
+		  split auto-configuration out of spring-boot-autoconfigure into one module per
+		  technology, so flyway-core alone puts the engine on the classpath with nothing
+		  to switch it on. That failure is silent: the app starts happily and never
+		  migrates. The starter brings flyway-core plus the spring-boot-flyway
+		  auto-configuration that actually runs it.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<!-- The PostgreSQL dialect. Flyway has needed this as a separate module since
+		     version 10, and the starter does not pull it. -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- The JDBC driver. Only needed at runtime, never compiled against. -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Swagger UI and the OpenAPI document, generated from the controllers. -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
+
+		<!-- JUnit 5, AssertJ, and Spring's test support. Test scope, so it stays out of the jar. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Repackages the jar into a runnable one containing the app, its
+			     dependencies, and Tomcat, so deployment is just java -jar. -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

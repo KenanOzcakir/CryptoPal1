@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: cryptopal-core
+
+  # Spring Boot does not read .env on its own, that is a Docker Compose convention.
+  # Importing it here means `mvn spring-boot:run` picks up the same file Compose uses,
+  # so there is one place to edit and no long `export` line before every run. The
+  # [.properties] hint tells Spring to parse an unfamiliar extension as key=value.
+  #
+  # Both paths are tried because the working directory differs between running from
+  # backend/ and running the jar from the project root. `optional:` means a missing
+  # file is fine, which is what makes this safe in production: there is no .env on the
+  # server, and real environment variables outrank anything imported here anyway.
+  config:
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:./.env[.properties]
+
+  datasource:
+    # No defaults on purpose. A typo in .env should stop the app at startup with a
+    # clear complaint, not quietly connect somewhere unintended.
+    url: ${DATABASE_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  jpa:
+    hibernate:
+      # Flyway owns the schema, so Hibernate is only allowed to check it, never change
+      # it. `validate` fails startup if an entity and its table have drifted apart,
+      # which is exactly when I want to hear about it. `update` would silently reshape
+      # a real table behind my back.
+      ddl-auto: validate
+    open-in-view: false
+
+# Swagger UI ends up at http://localhost:8080/swagger-ui.html
+# The raw OpenAPI document is at http://localhost:8080/v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Health only. The other actuator endpoints expose environment and beans, which
+        # is more than an unauthenticated port should be handing out.
+        include: health
