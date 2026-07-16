@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -33,11 +34,23 @@ import tools.jackson.databind.ObjectMapper;
  * a test that touched those keys would be racing it. ADA and DOT are never written by
  * anything but this test.
  *
- * <p>MARKET_PROVIDER is forced to ticker so the background scheduler does not call the real
- * Binance API while the suite runs. Tests should not need the internet.
+ * <p>The application's own MarketDataService bean is replaced with a mock, purely to stop
+ * its 15 second scheduler running. This is not squeamishness about the network: the
+ * scheduler writes a snapshot row per asset per tick into the real database, so every run
+ * of this suite was appending prices to the same history the AI module reads. Worse, when
+ * this test forced MARKET_PROVIDER=ticker, those rows were invented ones, landing next to
+ * real Binance rates with nothing to tell them apart. ETH was recorded at both 1872 and
+ * 3223 on the same afternoon.
+ *
+ * <p>Nothing is lost by mocking it, because every test below builds its own
+ * MarketDataService by hand anyway.
  */
-@SpringBootTest(properties = "MARKET_PROVIDER=ticker")
+@SpringBootTest
 class MarketDataServiceTest {
+
+    // Only here to keep the real one, and its scheduler, from starting. See above.
+    @MockitoBean
+    private MarketDataService applicationScheduler;
 
     // Deliberately not the four real assets. See the note above about the live scheduler.
     private static final List<String> TEST_PAIRS = List.of("ADAUSDT", "DOTUSDT");
