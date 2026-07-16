@@ -70,6 +70,15 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- WebClient, for calling Binance (and Gemini later). Spring Boot 4 added this
+		     dedicated starter, so WebClient no longer means dragging in the whole of
+		     WebFlux and running a second web stack alongside Tomcat just to make
+		     outbound HTTP calls. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webclient</artifactId>
+		</dependency>
+
 		<!--
 		  BCrypt only. I deliberately do NOT pull spring-boot-starter-security: it would
 		  install a full filter chain that locks down every route by default, and I would
