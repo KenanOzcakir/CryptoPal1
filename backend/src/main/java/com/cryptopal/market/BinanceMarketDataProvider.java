@@ -14,10 +14,15 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 /**
  * BinanceMarketDataProvider is my live price source, backed by Binance's public Spot API. I
- * grab every coin I care about in one batched call to /api/v3/ticker/price?symbols=[...], turn
- * each Binance pair back into my own symbol (BTCUSDT -> BTC), and parse the price into
+ * grab every coin I care about in one batched call to /api/v3/ticker/24hr?symbols=[...], turn
+ * each Binance pair back into my own symbol (BTCUSDT -> BTC), and parse the numbers into
  * BigDecimal. I only ever READ prices here, the app never places real orders, all the buying
  * and selling is simulated on my side.
+ *
+ * I started on /api/v3/ticker/price, which returns nothing but a symbol and a price. I moved
+ * to /24hr so the market table has a change and a volume to show: a page of four bare prices
+ * tells a user nothing about whether anything is moving. It is the same batched call and the
+ * same weight budget, just a fatter row.
  *
  * I picked Binance over CoinGecko for the deployed app because it has no monthly call cap, so
  * my 15-second refresh can run all day (see DECISIONS.md #9a). If anything goes wrong I throw
@@ -26,7 +31,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  */
 public class BinanceMarketDataProvider implements MarketDataProvider {
 
-    private static final ParameterizedTypeReference<List<BinanceTickerPrice>> LIST_TYPE =
+    private static final ParameterizedTypeReference<List<Binance24hrTicker>> LIST_TYPE =
             new ParameterizedTypeReference<>() {
             };
     private static final String QUOTE_ASSET = "USDT";
@@ -53,12 +58,12 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
 
     @Override
     public List<PriceQuote> fetchLatestPrices() {
-        List<BinanceTickerPrice> rows;
+        List<Binance24hrTicker> rows;
         try {
             // One GET for all the pairs at once, so I'm not hammering Binance with N calls.
             rows = webClient.get()
                     .uri(builder -> builder
-                            .path("/api/v3/ticker/price")
+                            .path("/api/v3/ticker/24hr")
                             .queryParam("symbols", symbolsParam())
                             .build())
                     .retrieve()
@@ -76,30 +81,49 @@ public class BinanceMarketDataProvider implements MarketDataProvider {
     }
 
     // Turn Binance's rows into my PriceQuotes: keep only the pairs I asked for, map
-    // SYMBOLUSDT -> SYMBOL, parse the price, and drop anything non-positive.
+    // SYMBOLUSDT -> SYMBOL, parse the numbers, and drop anything non-positive.
     // Package-private on purpose so I can test this bit without any HTTP.
-    List<PriceQuote> toQuotes(List<BinanceTickerPrice> rows, Instant quotedAt) {
+    List<PriceQuote> toQuotes(List<Binance24hrTicker> rows, Instant quotedAt) {
         // A quick lookup of the pairs I care about -> their plain symbol.
         Map<String, String> pairToAsset = new LinkedHashMap<>();
         for (String pair : pairs) {
             pairToAsset.put(pair.toUpperCase(Locale.ROOT), toAsset(pair));
         }
         List<PriceQuote> quotes = new ArrayList<>();
-        for (BinanceTickerPrice row : rows) {
-            if (row == null || row.symbol() == null || row.price() == null) {
+        for (Binance24hrTicker row : rows) {
+            if (row == null || row.symbol() == null || row.lastPrice() == null) {
                 continue;
             }
             String asset = pairToAsset.get(row.symbol().toUpperCase(Locale.ROOT));
             if (asset == null) {
                 continue; // a pair I didn't ask for -> skip it
             }
-            BigDecimal price = new BigDecimal(row.price());
+            BigDecimal price = new BigDecimal(row.lastPrice());
             if (price.signum() <= 0) {
                 continue; // PriceQuote won't accept a non-positive price, so I skip it
             }
-            quotes.add(new PriceQuote(asset, price, quotedAt));
+            // The change and the volume are decoration, so a missing or unreadable one must
+            // never cost me the price itself. A row with a good price and a mangled volume
+            // is still worth having.
+            quotes.add(new PriceQuote(asset, price, quotedAt,
+                    parseOrNull(row.priceChangePercent()),
+                    parseOrNull(row.quoteVolume())));
         }
         return quotes;
+    }
+
+    // Binance sends its numbers as Strings, and I keep them that way until here so nothing
+    // passes through a double on the way. Null rather than an exception on anything odd:
+    // see the note above about not losing a price over a broken volume.
+    private static BigDecimal parseOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // Binance wants the symbols as a JSON array string, like ["BTCUSDT","ETHUSDT"].
