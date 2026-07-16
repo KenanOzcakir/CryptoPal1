@@ -124,6 +124,17 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- MockMvc and @AutoConfigureMockMvc, for driving the controllers and the auth
+		     filter without starting a real server. Spring Boot 4 splits test support the
+		     same way it splits auto-configuration, so the generic starter above does not
+		     include the web pieces: without this, @AutoConfigureMockMvc has nothing to
+		     configure. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
