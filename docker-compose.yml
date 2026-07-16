@@ -1,0 +1,56 @@
+# Local development infrastructure: the two stateful services only.
+#
+# The backend and the frontend deliberately stay on the host during development
+# (mvn spring-boot:run and npm run dev), so a container restart never touches my
+# source tree and I keep hot reload on both sides. The production compose file
+# added in the deployment segment is the one that containerizes everything.
+#
+# Values come from .env, which is not committed. Copy .env.example to .env first.
+
+services:
+  postgres:
+    # Pinned to 17, not 18, and not :latest. Two reasons: pinning keeps the
+    # schema reproducible for anyone cloning this, and the postgres:18 image
+    # moved PGDATA to /var/lib/postgresql/18/docker. On 18 the conventional
+    # volume mount below would silently persist nothing.
+    image: postgres:17-alpine
+    container_name: cryptopal-postgres
+    restart: unless-stopped
+    environment:
+      # The :? syntax fails the command with this message when the variable is
+      # missing, instead of quietly starting Postgres with a blank database name.
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env (copy it from .env.example)}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready reports "accepting connections", which is exactly the
+      # condition Flyway needs before it can run migrations on startup.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    container_name: cryptopal-redis
+    restart: unless-stopped
+    # Persistence is switched off, and there is no volume below, on purpose.
+    # Redis only ever holds active sessions and the latest prices. Both are
+    # rebuildable: prices refresh within 15 seconds and a lost session just
+    # means logging in again. Persisting them would imply a durability
+    # guarantee that belongs to PostgreSQL instead.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
