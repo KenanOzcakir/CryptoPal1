@@ -2,12 +2,15 @@ package com.cryptopal.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+// Jackson 3, matching what Spring Boot 4 auto-configures and therefore what actually
+// serializes these responses at runtime. This started out as a Jackson 2 mapper with a
+// JavaTimeModule registered by hand, which passed while testing a library the
+// application does not serialize with.
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Covers the error contract itself, since every endpoint in the application depends on
@@ -56,14 +59,16 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void serializedShapeMatchesTheApiContract() throws Exception {
-        var mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        // No time module to register: Jackson 3 handles java.time out of the box.
+        var mapper = JsonMapper.builder().build();
         var body = new ErrorResponse("Insufficient funds to complete this trade",
                 ErrorCode.INSUFFICIENT_FUNDS, Instant.parse("2026-07-16T12:00:00Z"));
 
         String json = mapper.writeValueAsString(body);
 
-        // The exact three fields documented in API_CONTRACT.md, and nothing extra.
-        assertThat(mapper.readTree(json).fieldNames()).toIterable()
+        // The exact three fields documented in API_CONTRACT.md, in that order, and
+        // nothing extra. (Jackson 3 renamed fieldNames() to propertyNames().)
+        assertThat(mapper.readTree(json).propertyNames())
                 .containsExactly("message", "code", "timestamp");
         assertThat(json).contains("\"code\":\"INSUFFICIENT_FUNDS\"");
     }
