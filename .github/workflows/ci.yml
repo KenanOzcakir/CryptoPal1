@@ -1,0 +1,127 @@
+# Runs the backend suite and the frontend build on every push and pull request.
+#
+# The backend tests are not unit tests in isolation: they use a real PostgreSQL and a real
+# Redis, on purpose, because that is where the money, the concurrency and the sessions
+# actually live. So this workflow stands those two up as service containers, exactly the
+# pair that docker-compose.yml runs locally, and points the app at them.
+#
+# It builds on JDK 21 while compiling for 17. Bytecode for 17 runs on any newer JVM, and
+# the compiler's release=17 still rejects a Java 21 API, so a stray List.getFirst() fails
+# here rather than on the server. This mirrors the backend Dockerfile, which also builds on
+# temurin 21.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A newer push to the same branch cancels the run already in flight. No point finishing a
+# suite against a commit I have already replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only. This workflow tests code, it does not change anything.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    services:
+      # The same images and credentials as docker-compose.yml, so CI exercises the versions
+      # the app is pinned to rather than whatever "postgres" resolves to today.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: cryptopal
+          POSTGRES_USER: cryptopal
+          POSTGRES_PASSWORD: cryptopal
+        ports:
+          - 5432:5432
+        # The job does not start running until pg_isready says the server accepts
+        # connections, which is the same condition Flyway needs before it can migrate.
+        options: >-
+          --health-cmd "pg_isready -U cryptopal -d cryptopal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # application.yml gives these no defaults on purpose, so a typo stops the app rather
+      # than connecting somewhere unintended. That makes them required here. They point at
+      # the service containers above, reachable on localhost because this job runs on the
+      # runner host rather than inside a container.
+      DATABASE_URL: jdbc:postgresql://localhost:5432/cryptopal
+      POSTGRES_DB: cryptopal
+      POSTGRES_USER: cryptopal
+      POSTGRES_PASSWORD: cryptopal
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      SESSION_TTL_MINUTES: 120
+      # ticker, not binance, and this is the important line. GitHub's runners are in the US,
+      # and Binance answers HTTP 451 to US IPs, so the price scheduler that a couple of the
+      # full-context tests start would make a real call that gets refused. ticker forces the
+      # offline engine, which keeps the suite hermetic and needs no network. It is the same
+      # US block that decided where this project is hosted, reaching into CI.
+      MARKET_PROVIDER: ticker
+      BINANCE_BASE_URL: https://api.binance.com
+      SUPPORTED_SYMBOLS: BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT
+      # No GEMINI_API_KEY. The app treats a missing key as "assistant off", the outbound
+      # Gemini client is stubbed in the tests anyway, and the suite spends no tokens.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          # Caches ~/.m2 keyed on the pom, so the Spring Boot dependency tree is downloaded
+          # once rather than on every run.
+          cache: maven
+
+      - name: Run the tests
+        run: mvn -B -f backend/pom.xml clean test
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # ci rather than install: it installs exactly what the lockfile pins and fails if the
+      # two disagree, the same choice the frontend Dockerfile makes.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # The build is the frontend's test: tsc -b typechecks against the backend DTOs it
+      # mirrors, then vite builds. A rename on either side that the two disagree about fails
+      # here rather than in the browser. No VITE_ variables are needed, because the bundle
+      # calls /api relative and has no backend URL compiled into it.
+      - name: Typecheck and build
+        run: npm run build
+        working-directory: frontend
