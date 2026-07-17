@@ -443,45 +443,102 @@ browser :80 -> nginx ---------------> static SPA files
                                                    -> redis:6379
 ```
 
-### Host: Oracle Cloud Always-Free, not GCP e2-micro
+### Host: a temporary GCP box in Frankfurt, after the free ARM hardware refused to exist
 
-**Alternative:** GCP's e2-micro free tier, which is what my previous assignment used and
-therefore the familiar path.
+What I wanted, decided before any provider was:
 
-| | Oracle Always-Free (Ampere A1) | GCP e2-micro |
-|---|---|---|
-| Resources | 4 vCPU, 24GB | 2 shared vCPU, **1GB** |
-| Architecture | **arm64** | x86_64 |
-| Four containers | Comfortable | Tight |
+1. **An EU region**, because of Binance. This one is not negotiable and is explained below.
+2. **arm64**, because my development machine is an ARM Mac.
+3. **Enough memory to build the images on the box.**
+4. **Free**, ideally.
 
-Four reasons. The first one alone decides it.
+Only the first of those is a requirement. The rest turned out to be preferences, and finding
+out which was which is most of what this section is about.
 
-**0. GCP's free tier is US-only, and Binance blocks US IPs.** Always Free e2-micro exists in
+**Ruled out permanently: GCP's e2-micro free tier**, which my previous assignment used and was
+therefore the familiar path. One reason decides it, and it is the kind of failure this whole
+project exists to avoid.
+
+**GCP's free tier is US-only, and Binance blocks US IPs.** Always Free e2-micro exists in
 `us-west1`, `us-central1` and `us-east1` and nowhere else. Binance answers HTTP 451 to US
 addresses, so on a free GCP box every refresh would fail and the app would fall back to the
 ticker engine. It would keep working and quietly show **invented prices while claiming real
-exchange rates**, which is the worst kind of broken: silent. A non-US e2 instance would fix
-the region and would have to be paid for. So the free tier was never actually a candidate,
-whatever its memory.
+exchange rates**, which is the worst kind of broken: silent. Nothing crashes. The market page
+simply stops being true. This is why the region is a requirement and not a preference, and it
+is the one line in this section I would not bend for any amount of convenience.
 
-**1. Architecture.** My development machine is an ARM Mac, and Oracle's free tier is ARM.
-Images built here run there unchanged.
+**Planned, and built for: Oracle Cloud Always-Free, Ampere A1.** 4 vCPU, 24GB, arm64, an EU
+region, free indefinitely rather than as a trial. On paper it answers everything.
 
-This inverts a lesson from my last assignment, which concluded that "the jar compiled on an
-ARM Mac ran unchanged on the x86 Linux VM, because Java bytecode only cares about the JVM
-version, not the CPU". That is true of **bytecode** and false of **Docker images**. An image
-is built for an architecture. Targeting x86 from an ARM Mac means either cross-building with
-buildx or building on the box, and the box in question has 1GB of RAM. Matching the
-architecture removes the problem rather than solving it.
+**What happened: `Out of host capacity`.** Oracle's free ARM capacity is heavily contested and
+was simply not there. Milan refused 4 OCPU / 24GB, then refused even the minimum 1 OCPU / 6GB,
+at three in the morning, which is supposed to be the easy hour. Nothing to debug and nothing
+misconfigured: the free tier's real price is queueing for hardware, and a deadline is not
+something you can pay with.
 
-**2. Memory.** PostgreSQL, Redis, a JVM and nginx on 1GB is not much headroom. My own
-previous assignment notes record that 1GB could not comfortably *build* a Spring Boot app,
-only run it. 24GB is not needed, but it means the deployment is not an exercise in shaving
-heap sizes.
+A trap worth recording, because it is the reverse of the common advice: **the home region is
+chosen at signup and cannot be changed**, and Always Free resources exist only in the home
+region. So "if capacity is short, try another region" only works *before* you sign up.
 
-**3. Cost.** Oracle's Always Free tier is free indefinitely rather than a trial. The
-alternative that would actually work on GCP, a paid instance in a European region, is money
-out of pocket for a term project.
+**Tried next: Hetzner.** Their cost-optimized line (CX23 and the arm64 CAX11) is the natural
+home for something this size. It was unavailable across every EU location I tried. What was
+available was their higher-performance AMD line at roughly five times the price, which defeats
+the point of going there.
+
+**Where it actually runs: GCP `e2-medium`, `europe-west3` (Frankfurt), x86_64, paid.**
+
+| | Oracle A1 (planned) | Hetzner CAX11 | **GCP e2-medium (running)** | GCP e2-micro free |
+|---|---|---|---|---|
+| Architecture | arm64 | arm64 | **x86_64** | x86_64 |
+| Memory | 24GB | 4GB | **4GB** | 1GB |
+| Region | EU | EU | **EU (Frankfurt)** | **US only** |
+| Binance answers | 200 | 200 | **200, verified from the box** | **451** |
+| Cost | free | ~4 EUR/mo | **paid** | free |
+| Available when I needed it | **no** | **no** | **yes** | n/a |
+
+I chose it for honest reasons rather than elegant ones. The account, the billing and a
+configured `gcloud` were already on my machine from a previous assignment, so the instance
+existed seconds after I asked for it, in a region where Binance answers 200. After two
+providers had spent a night telling me no, availability was worth more than architecture.
+
+**This is deliberately a temporary home.** Its job is to prove the deployment works end to end
+on real hardware and to give the project a URL. A tidier long-term answer is a free Oracle A1
+once capacity appears, or a small subscription box from Hetzner or Netcup. Nothing has to
+change for that to happen: `docker-compose.prod.yml` is host-agnostic, so moving is create a
+box, install Docker, hand-write `.env`, clone, and bring it up.
+
+### Why the arm64 requirement quietly stopped being one
+
+Worth its own heading, because it is the most useful thing I learned here.
+
+The original argument was: my Mac is ARM, Oracle's free tier is ARM, so images built here run
+there unchanged. That reasoning is correct, and it is **entirely contingent on shipping images
+built on my laptop**. The deployment does not do that. It clones the repository onto the server
+and runs `docker compose up -d --build`, so the box builds its own images, for its own
+architecture, from the same Dockerfiles.
+
+Once the box builds them, its CPU stops being my problem. x86 cost this project nothing: not a
+Dockerfile line, not a compose line, not a byte of application code. Every base image was
+already multi-arch, which I checked rather than assumed:
+
+```text
+maven:3.9-eclipse-temurin-21   amd64 arm64
+eclipse-temurin:17-jre         amd64 arm64
+node:24-alpine                 amd64 arm64
+nginx:1.29-alpine              amd64 arm64
+postgres:17-alpine             amd64 arm64
+redis:8-alpine                 amd64 arm64
+```
+
+The single architecture trap in the whole build was `eclipse-temurin:17-jre-alpine`, which is
+published for **amd64 only**, and it was avoided at the start for exactly this reason. Choosing
+the non-alpine JRE looked like giving up 60MB. It was actually what made the runtime image
+portable.
+
+So the honest lesson is that I spent real hours defending a preference I had mistaken for a
+requirement, because I had written down its conclusion ("match the architecture") rather than
+its premise ("if you ship locally built images"). A requirement that disappears when you change
+an unrelated decision was never a requirement.
 
 ### What the deployment needs, and what it does not
 
@@ -489,16 +546,12 @@ No API key, and no credential of any kind in the repository. The whole list:
 
 | Needed | Note |
 |---|---|
-| An Oracle Cloud account | Free. A card is required for identity verification; Always Free resources are not charged |
-| An SSH key pair | Generated locally. The private key never leaves the machine and is never committed |
-| An Ampere A1 instance | Ubuntu, arm64, **in an EU region** |
-| Port 80 open | In the VCN security list *and* in the VM's own firewall. Oracle denies ingress by default |
+| A GCP project with billing enabled | The instance is paid. The free tier is not usable here, for the region reason above |
+| `gcloud`, authenticated | The instance, the firewall rule and the SSH session all come from the CLI |
+| An `e2-medium` instance | Ubuntu 24.04, **in a European region**. 4GB against a stack that measures 669MB is generous |
+| A firewall rule for TCP 80 | Scoped to a network tag so it opens the port on this box alone rather than the whole project. Ubuntu's GCP image runs no host firewall of its own, so unlike some hosts there is only one place to get this right |
 | Docker and Compose on the VM | Installed once |
 | `.env`, written by hand on the VM | It is gitignored and correctly absent from the repository, so a fresh clone will not start without it |
-
-**Known snag:** Oracle's free ARM capacity is often exhausted in popular regions, which
-surfaces as `Out of host capacity` at instance creation. The usual answer is a different EU
-region or retrying later. Worth knowing before rather than during a deploy.
 
 **Region has to be verified before the first deploy**, whichever host is used, because the
 Binance block does not announce itself: the app keeps working and the numbers quietly stop
