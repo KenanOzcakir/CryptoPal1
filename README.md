@@ -208,7 +208,7 @@ cd backend
 mvn test
 ```
 
-**92 tests, 0 failures.** They never call Binance or Gemini: the outbound clients are
+**97 tests, 0 failures.** They never call Binance or Gemini: the outbound clients are
 stubbed, so the suite needs no network and spends no tokens.
 
 The tests worth knowing about:
@@ -261,6 +261,9 @@ Other behaviour that is deliberate rather than accidental:
 - **Market prices are public.** Everything else needs a session.
 - **The Gemini key never leaves the server.** The browser has no way to reach Gemini.
 - **The app runs without a Gemini key.** Only `/api/ai/ask` degrades.
+- **The assistant is capped**, at 20 questions per person and 300 in total per rolling day,
+  because Gemini's capacity is the one thing here I do not own. Crossing either answers
+  `RATE_LIMITED` (429) and nothing else in the app is affected. Nothing else is rate limited.
 
 ## Expected result
 
@@ -322,7 +325,7 @@ CryptoPal1/
 │       ├── main/resources/
 │       │   ├── application.yml
 │       │   └── db/migration/V1__initial_schema.sql
-│       └── test/java/com/cryptopal/        92 tests
+│       └── test/java/com/cryptopal/        97 tests
 ├── frontend/
 │   ├── Dockerfile          Node builds the SPA, nginx serves it
 │   ├── nginx.conf          serves the SPA, proxies /api to the backend
@@ -451,7 +454,7 @@ Everything is read from the environment. Nothing is hardcoded and no secret is c
 - [x] Swagger documentation
 - [x] Frontend with loading and error states
 - [x] No secrets committed
-- [x] 92 tests passing
+- [x] 97 tests passing
 - [x] Screenshots
 - [x] Deployment to a VM (GCP e2-medium, Frankfurt)
 

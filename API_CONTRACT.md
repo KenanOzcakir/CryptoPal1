@@ -256,11 +256,32 @@ asset. It is instructed to use nothing else, never to invent figures, never to r
 the numbers it is given, and never to give guaranteed financial advice.
 
 Errors: `VALIDATION_ERROR` (400, blank or over 500 characters), `UNAUTHORIZED` (401),
-`AI_UNAVAILABLE` (503, assistant unreachable, busy, or not configured on the server),
-`PRICE_UNAVAILABLE` (503, no cached prices to build the context from).
+`RATE_LIMITED` (429, see below), `AI_UNAVAILABLE` (503, assistant unreachable, busy, or not
+configured on the server), `PRICE_UNAVAILABLE` (503, no cached prices to build the context
+from).
 
 The app runs without a Gemini key. Only this endpoint degrades, answering
 `AI_UNAVAILABLE`.
+
+### How many questions you get
+
+This is the only endpoint with a quota, because it is the only one that spends someone
+else's capacity. Two limits apply, and crossing either answers `RATE_LIMITED` (429):
+
+| Limit | Default | What it is for |
+|---|---|---|
+| Per user | 20 questions | Fairness. One person cannot lean on the button all afternoon |
+| Everyone together | 300 questions | The real protection. Registration is open, so a per-user limit alone would mean ten accounts get ten times the allowance |
+
+Both are rolling 24 hour windows that start at the first question, not calendar days, so
+there is no particular midnight to wait for. The message says which limit was hit and when
+it resets. Both are configurable (`AI_DAILY_QUESTION_LIMIT`, `AI_DAILY_GLOBAL_LIMIT`).
+
+The **attempt** is counted, not the answer. A question that Gemini fails to answer still
+spends one, because counting only successes would make failures free and endlessly
+retryable, which is precisely how a quota gets drained.
+
+Nothing else in the app is rate limited, and nothing else stops working when this runs out.
 
 ## Standard Error Response
 
@@ -283,6 +304,7 @@ DUPLICATE_EMAIL        409
 INSUFFICIENT_FUNDS     400
 INSUFFICIENT_HOLDINGS  400
 UNSUPPORTED_SYMBOL     400
+RATE_LIMITED           429
 PRICE_UNAVAILABLE      503
 AI_UNAVAILABLE         503
 INTERNAL_ERROR         500
