@@ -6,6 +6,7 @@ questions about your own account.
 
 Built solo as an i2i term project.
 
+[![CI](https://github.com/KenanOzcakir/CryptoPal1/actions/workflows/ci.yml/badge.svg)](https://github.com/KenanOzcakir/CryptoPal1/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-17-red)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-brightgreen)
 ![React](https://img.shields.io/badge/React-19-61dafb)
