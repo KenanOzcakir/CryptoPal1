@@ -43,6 +43,21 @@ public class AiInsightController {
                     use nothing else, and every figure it is given is already calculated, so \
                     it is describing numbers rather than working them out.
 
+                    **This is the only endpoint with a quota**, because it is the only one \
+                    that spends capacity I do not own. Two limits apply, and crossing either \
+                    answers `RATE_LIMITED` (429):
+
+                    - **20 questions per account**, so one person cannot use the whole day.
+                    - **300 questions in total**, across everyone. This is the real ceiling: \
+                    registration is open, so a per-account limit alone would mean ten \
+                    accounts get ten times the allowance.
+
+                    Both are rolling 24 hour windows that start at your first question, not \
+                    calendar days, so there is no particular midnight to wait for. The \
+                    attempt is counted rather than the answer, so a question the assistant \
+                    fails to answer still spends one. Nothing else in the API is rate \
+                    limited, and nothing else stops working when this runs out.
+
                     Answers are informational, not financial advice, and the account is \
                     simulated.
                     """)
@@ -51,6 +66,11 @@ public class AiInsightController {
             @ApiResponse(responseCode = "400", description = "VALIDATION_ERROR, blank or over 500 characters",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "UNAUTHORIZED",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "429",
+                    description = "RATE_LIMITED. Either this account's 20 questions or the "
+                            + "shared daily 300 are spent. The message says which, and when "
+                            + "it resets. Retrying later works; retrying now does not",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "503",
                     description = "AI_UNAVAILABLE (assistant unreachable, busy, or unconfigured) "

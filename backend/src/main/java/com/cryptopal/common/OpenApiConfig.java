@@ -42,6 +42,17 @@ public class OpenApiConfig {
 
                         The two are not interchangeable. Sending a fiat amount to a SELL \
                         would try to sell 100 whole coins.
+
+                        ## The assistant has a quota
+
+                        `POST /api/ai/ask` is the only endpoint here with a limit, because \
+                        Gemini's capacity is the only thing this application spends that it \
+                        does not own. **20 questions per account, and 300 across everyone**, \
+                        in a rolling 24 hours. Crossing either answers `RATE_LIMITED` (429), \
+                        and the message says which limit it was.
+
+                        Nothing else is rate limited, and nothing else stops working when \
+                        the assistant runs out.
                         """));
     }
 }
