@@ -9,6 +9,7 @@ import com.cryptopal.common.ErrorCode;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,6 +40,20 @@ class AiRateLimiterTest {
     @Autowired
     private StringRedisTemplate redis;
 
+    /**
+     * Before as well as after, and the "before" is the one that matters.
+     *
+     * <p>Cleaning up only afterwards left this class depending on the order the suite runs
+     * in, which is not a promise JUnit makes. {@code AiIntegrationTest} drives
+     * {@code /api/ai/ask} for real, so it increments the same global counter in the same
+     * Redis, and this class turns the global limit down to 5. Run it second and the budget
+     * was already spent before the first line of the test, which surfaced as an error
+     * during setup rather than an honest assertion failure.
+     *
+     * <p>It passed for a while on ordering luck. A test that depends on what ran before it
+     * is a test that will fail on someone else's machine, at the worst possible moment.
+     */
+    @BeforeEach
     @AfterEach
     void clearQuotaKeys() {
         // Redis is shared with the running app in development, so only this feature's keys
