@@ -13,6 +13,18 @@ Built solo as an i2i term project.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
 ![Redis](https://img.shields.io/badge/Redis-8-dc382d)
 
+## Live demo
+
+**http://35.246.229.20** and the API documentation at
+**http://35.246.229.20/swagger-ui.html**
+
+Register with any email and you get a randomized virtual balance to trade with, against live
+Binance prices. The money is imaginary and the prices are not.
+
+Two honest notes. It is **http, not https**: TLS needs a domain, and that is the first thing I
+would add next. And it runs on one small box in Frankfurt, so it is a demonstration rather
+than a service.
+
 ## Objective
 
 Build a modular backend that has to get several things right at once: real external market
@@ -441,7 +453,7 @@ Everything is read from the environment. Nothing is hardcoded and no secret is c
 - [x] No secrets committed
 - [x] 92 tests passing
 - [x] Screenshots
-- [ ] Deployment to a VM (Oracle Cloud Always-Free, arm64)
+- [x] Deployment to a VM (GCP e2-medium, Frankfurt)
 
 ## Licence
 
