@@ -90,6 +90,12 @@ services:
       GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
       GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-20}
+
+      # The assistant's daily budget, per user and in total. Defaulted here as well as in
+      # the application, because this is the file that matters on a public box: the app is
+      # reachable by anyone, and Gemini's free quota is shared by everyone using it.
+      AI_DAILY_QUESTION_LIMIT: ${AI_DAILY_QUESTION_LIMIT:-20}
+      AI_DAILY_GLOBAL_LIMIT: ${AI_DAILY_GLOBAL_LIMIT:-300}
     depends_on:
       postgres:
         condition: service_healthy
