@@ -42,21 +42,29 @@ public class AiInsightService {
     private final PriceSnapshotRepository snapshots;
     private final PromptBuilder promptBuilder;
     private final GeminiClient geminiClient;
+    private final AiRateLimiter rateLimiter;
 
     public AiInsightService(PortfolioService portfolioService,
                             MarketDataService marketData,
                             PriceSnapshotRepository snapshots,
                             PromptBuilder promptBuilder,
-                            GeminiClient geminiClient) {
+                            GeminiClient geminiClient,
+                            AiRateLimiter rateLimiter) {
         this.portfolioService = portfolioService;
         this.marketData = marketData;
         this.snapshots = snapshots;
         this.promptBuilder = promptBuilder;
         this.geminiClient = geminiClient;
+        this.rateLimiter = rateLimiter;
     }
 
     /** Gathers this user's account, builds a prompt, and returns Gemini's answer. */
     public AiInsightResponse ask(UUID userId, String question) {
+        // Before anything else. Gathering the context reads the wallet, the holdings, the
+        // trades and forty price snapshots, and there is no point doing any of that for a
+        // question I am about to refuse.
+        rateLimiter.recordQuestion(userId);
+
         InsightContext context = gatherContext(userId);
         String prompt = promptBuilder.buildUserInsightPrompt(context, question);
 
