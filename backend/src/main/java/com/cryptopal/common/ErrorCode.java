@@ -44,6 +44,12 @@ public enum ErrorCode {
     /** Gemini timed out, rate limited, rejected the key, or returned nothing usable. */
     AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
 
+    /** Too many assistant questions, either from this user or from everyone today.
+     *  429 rather than 503: 503 would say the service is broken, and it is not. The caller
+     *  asked for more than they are allowed, which is their side of the conversation, and
+     *  waiting genuinely fixes it. */
+    RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
+
     /** Anything unplanned. The details go to the log, never to the caller. */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
