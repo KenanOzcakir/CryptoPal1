@@ -14,6 +14,7 @@ export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -99,23 +100,38 @@ export function AuthPage() {
           <label className="mb-1.5 block text-xs font-medium text-muted" htmlFor="password">
             Password
           </label>
-          <input
-            id="password"
-            type="password"
-            required
-            // The browser is told which of the two this is, so a password manager offers to
-            // save a new one rather than autofilling the old one over it.
-            autoComplete={registering ? 'new-password' : 'current-password'}
-            // Matches the backend's rule exactly. 8 is its minimum, and 72 is BCrypt's
-            // ceiling, beyond which it stops reading. Enforcing it here means the user
-            // finds out while typing rather than after a round trip.
-            minLength={registering ? 8 : undefined}
-            maxLength={registering ? 72 : undefined}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={registering ? 'At least 8 characters' : ''}
-            className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm outline-none placeholder:text-muted/60 focus:border-accent"
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              // The browser is told which of the two this is, so a password manager offers to
+              // save a new one rather than autofilling the old one over it.
+              autoComplete={registering ? 'new-password' : 'current-password'}
+              // Matches the backend's rule exactly. 8 is its minimum, and 72 is BCrypt's
+              // ceiling, beyond which it stops reading. Enforcing it here means the user
+              // finds out while typing rather than after a round trip.
+              minLength={registering ? 8 : undefined}
+              maxLength={registering ? 72 : undefined}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={registering ? 'At least 8 characters' : ''}
+              className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 pr-10 text-sm outline-none placeholder:text-muted/60 focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink focus:outline-none"
+              aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+              title={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+            >
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+              )}
+            </button>
+          </div>
 
           {registering && (
             <p className="mt-2 text-xs text-muted">
