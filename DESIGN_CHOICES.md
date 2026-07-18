@@ -1,6 +1,6 @@
 # Design Choices
 
-Every significant decision in CryptoPal, what the alternative was, and why I chose what I
+Every significant decision in LumpaCrypto, what the alternative was, and why I chose what I
 chose. Written so the reasoning survives after I have forgotten it, and so I can defend any
 of it in a review.
 
@@ -75,7 +75,7 @@ A JWT carries its own claims and is valid until it expires. Nothing can revoke i
 without a denylist, and a denylist is a server-side session lookup, which is the thing JWT
 was supposed to avoid. So a JWT app that needs real logout ends up with both.
 
-CryptoPal stores 32 random bytes under `session:<token>` in Redis with a TTL. The token
+LumpaCrypto stores 32 random bytes under `session:<token>` in Redis with a TTL. The token
 means nothing on its own; it is a lookup key. **Logout is a `DELETE`, and the token is dead
 immediately.** There is a test that proves it: log out, and the next request with that token
 is refused.

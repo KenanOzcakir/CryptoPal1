@@ -1,6 +1,6 @@
 # API Contract
 
-This file defines the backend and frontend contract for CryptoPal. Keep it updated when request or response shapes change.
+This file defines the backend and frontend contract for LumpaCrypto. Keep it updated when request or response shapes change.
 
 ## Authentication
 
