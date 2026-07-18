@@ -1,4 +1,4 @@
-# CryptoPal
+# LumpaCrypto
 
 A cryptocurrency trading simulator with an AI account assistant. Real prices from Binance,
 simulated trades against a virtual balance, and a Gemini-backed assistant that answers
@@ -6,7 +6,7 @@ questions about your own account.
 
 Built solo as an i2i term project.
 
-[![CI](https://github.com/KenanOzcakir/CryptoPal1/actions/workflows/ci.yml/badge.svg)](https://github.com/KenanOzcakir/CryptoPal1/actions/workflows/ci.yml)
+[![CI](https://github.com/KenanOzcakir/LumpaCrypto/actions/workflows/ci.yml/badge.svg)](https://github.com/KenanOzcakir/LumpaCrypto/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-17-red)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-brightgreen)
 ![React](https://img.shields.io/badge/React-19-61dafb)
@@ -147,8 +147,8 @@ typescript, vite                    Build and typecheck
 ## Setup
 
 ```bash
-git clone https://github.com/KenanOzcakir/CryptoPal1.git
-cd CryptoPal1
+git clone https://github.com/KenanOzcakir/LumpaCrypto.git
+cd LumpaCrypto
 
 # 1. Configuration. .env is gitignored and never committed.
 cp .env.example .env
@@ -311,7 +311,7 @@ Branch on `code`, never on `message`.
 ## Structure
 
 ```text
-CryptoPal1/
+LumpaCrypto/
 ├── backend/
 │   ├── Dockerfile          multi-stage: a JDK compiles, a JRE runs
 │   ├── pom.xml

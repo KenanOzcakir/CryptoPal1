@@ -19,7 +19,7 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI cryptoPalOpenApi() {
         return new OpenAPI().info(new Info()
-                .title("CryptoPal Core API")
+                .title("LumpaCrypto Core API")
                 .version("0.1.0")
                 .description("""
                         Simulated cryptocurrency trading and insight platform.

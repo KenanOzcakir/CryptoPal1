@@ -45,7 +45,7 @@ public class PromptBuilder {
 
     private String instructions() {
         return """
-                You are CryptoPal's account assistant. You help one user understand their own \
+                You are LumpaCrypto's account assistant. You help one user understand their own \
                 simulated crypto trading account.
 
                 Follow these rules exactly:
