@@ -53,10 +53,17 @@ function Shell() {
       <header className="sticky top-0 z-30 border-b border-hairline bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="inline-flex size-7 items-center justify-center rounded-lg bg-accent text-sm font-bold">
-              C
+            {/* gradient badge with a soft glow -> lifting the logo off the flat header */}
+            <span className="inline-flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover text-sm font-bold shadow-lg shadow-accent/40">
+              L
             </span>
-            <span className="font-semibold">CryptoPal</span>
+            {/* two-tone brand name -> gradient blue for Lumpa, ink for Crypto */}
+            <span className="font-semibold">
+              <span className="bg-gradient-to-r from-accent-soft to-accent bg-clip-text text-transparent">
+                Lumpa
+              </span>
+              <span className="text-ink">Crypto</span>
+            </span>
           </div>
 
           <nav className="flex items-center gap-1 text-sm">
