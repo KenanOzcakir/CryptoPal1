@@ -47,12 +47,15 @@ export function AuthPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mb-3 inline-flex size-11 items-center justify-center rounded-xl bg-accent text-xl font-bold">
+          {/* gradient badge with a soft glow -> matching the header logo treatment */}
+          <div className="mb-3 inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-hover text-xl font-bold shadow-lg shadow-accent/40">
             L
           </div>
-          {/* two-tone brand name -> team identity: accent for Lumpa, ink for Crypto */}
+          {/* two-tone brand name -> gradient blue for Lumpa, ink for Crypto */}
           <h1 className="text-2xl font-semibold">
-            <span className="text-accent">Lumpa</span>
+            <span className="bg-gradient-to-r from-accent-soft to-accent bg-clip-text text-transparent">
+              Lumpa
+            </span>
             <span className="text-ink">Crypto</span>
           </h1>
           <p className="mt-1 text-sm text-muted">
