@@ -5,29 +5,29 @@
   declared in @theme becomes a utility automatically, so bg-surface and text-up work with
   no config file at all.
 
-  The palette is lifted from the CoinMarketCap screenshot this UI is modelled on: a very
-  dark blue-black canvas, a lighter panel, one blue accent, and green/red for direction.
-  Naming them by role (surface, up, down) rather than by colour means changing the theme
-  later is one edit here instead of a hunt through every component.
+  The palette is the LumpaCrypto theme: a near-black canvas with a faint red cast, lighter
+  red-tinted panels, one red accent, and green/red for direction. Naming colours by role
+  (surface, up, down) rather than by colour means changing the theme later is one edit
+  here instead of a hunt through every component.
 */
 @theme {
-  /* Backgrounds, darkest first. */
-  --color-canvas: #0d1421;
-  --color-surface: #171d2b;
-  --color-raised: #1f2637;
-  --color-hairline: #2a3142;
+  /* Backgrounds, darkest first. Each layer keeps the same faint red undertone. */
+  --color-canvas: #0d0708;
+  --color-surface: #191012;
+  --color-raised: #241719;
+  --color-hairline: #392225;
 
   /* Text. */
-  --color-ink: #eff2f5;
-  --color-muted: #8a93a5;
+  --color-ink: #f5eff0;
+  --color-muted: #a38f92;
 
-  /* Direction. Green is up, red is down, and nothing else in this app is allowed to use
-     them, so a green number always means exactly one thing. */
+  /* Direction. Green is up, red is down. The accent below is also red now, so direction
+     red is kept brighter and warmer than accent red to stay tellable at a glance. */
   --color-up: #16c784;
   --color-down: #ea3943;
 
-  --color-accent: #3861fb;
-  --color-accent-hover: #2b4fd4;
+  --color-accent: #dc2626;
+  --color-accent-hover: #b91c1c;
 }
 
 html {

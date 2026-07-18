@@ -125,7 +125,7 @@ export function AskBar() {
             onChange={(e) => setQuestion(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Ask CryptoPal AI about your account"
+            placeholder="Ask LumpaCrypto AI about your account"
             // The backend rejects anything longer, so the field stops at the same number
             // rather than letting someone type an essay and then be told no.
             maxLength={500}

@@ -54,9 +54,13 @@ function Shell() {
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex size-7 items-center justify-center rounded-lg bg-accent text-sm font-bold">
-              C
+              L
             </span>
-            <span className="font-semibold">CryptoPal</span>
+            {/* two-tone brand name -> team identity: accent for Lumpa, ink for Crypto */}
+            <span className="font-semibold">
+              <span className="text-accent">Lumpa</span>
+              <span className="text-ink">Crypto</span>
+            </span>
           </div>
 
           <nav className="flex items-center gap-1 text-sm">

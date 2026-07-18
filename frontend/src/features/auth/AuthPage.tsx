@@ -48,9 +48,13 @@ export function AuthPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex size-11 items-center justify-center rounded-xl bg-accent text-xl font-bold">
-            C
+            L
           </div>
-          <h1 className="text-2xl font-semibold">CryptoPal</h1>
+          {/* two-tone brand name -> team identity: accent for Lumpa, ink for Crypto */}
+          <h1 className="text-2xl font-semibold">
+            <span className="text-accent">Lumpa</span>
+            <span className="text-ink">Crypto</span>
+          </h1>
           <p className="mt-1 text-sm text-muted">
             Real prices. Simulated trades. Play money.
           </p>
