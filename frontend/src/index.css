@@ -51,6 +51,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* On a phone, a fixed background is repainted on every scroll frame, which stutters badly
+   on iOS Safari in particular. I let it scroll with the page there instead. The depth
+   effect stays on desktop, where fixed both looks better and costs nothing. */
+@media (max-width: 640px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
 /*
   Every number in this app is money, and money should not dance. Tabular figures fix each
   digit to the same width, so a price ticking from 64,111 to 64,999 does not shift the
